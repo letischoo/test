@@ -2,4 +2,46 @@
 
 {% block content %}
 		list of games
+
+<style>
+#chat {
+	background: grey;
+	border: 1px solid black;
+	bottom: 150px;
+	left: 0px;
+	width: 500px;
+	height: 150px;
+}
+</style>
+
+<input type="text" id="msg" />
+<button type="submit" id="send">Send</button>
+<script type="text/javascript">
+
+var ws = new WebSocket("ws://localhost:8001");
+ws.onmessage = function(msg) {
+	data = JSON.parse(msg.data);
+	if (data.type == 'global-message') {
+		$("#chat").append(data.content.name + ": " + data.content.message + "<br>");
+	} else {
+		console.log(data);
+	}
+}
+
+$("#send").click(function(){
+	var tekst = $("#msg").val();
+	if (tekst.trim()) {	
+		ws.send(JSON.stringify({'type': 'global-message', 'content': tekst}));
+		$("#msg").val("");
+	}
+});
+
+</script>
+
+<body>
+
+<div id="chat"> </div>
+
+<body>
+
 {% endblock %}
