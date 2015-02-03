@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__.'/../vendor/autoload.php';
 
 use Symfony\Component\HttpFoundation\Request;
@@ -7,9 +8,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\User;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Table;
-
 
 class UserProvider implements UserProviderInterface
 {
@@ -46,9 +47,6 @@ class UserProvider implements UserProviderInterface
     }
 }
 
-
-
-
 $app = new Silex\Application();
 
 
@@ -65,25 +63,40 @@ $app->register(new Silex\Provider\DoctrineServiceProvider(), array(
     )
 ));
 
+$app->register(new Silex\Provider\SessionServiceProvider());
+
+$app['session.db_options'] = array(
+    'db_table' => 'session',
+    'db_id_col' => 'session_id',
+    'db_username_col'=> 'session_username',
+    'db_data_col' => 'session_value',
+    'db_time_col' => 'session_time',
+);
+
+
+
+$app['games'] = [
+    'noughsandcrosses' => 'Kółko i krzyżyk'
+];
 
 $app->register(new Silex\Provider\SecurityServiceProvider(), array(
     'security.firewalls' => array(
-		'login_path' => array(
-        	'pattern' => '^/login$',
-        	'anonymous' => true
-    	),
-		'game' => array(
-			'pattern' => '^/',
-			'form' => array('login_path' => '/login', 'check_path' => '/login_check'),
-			'logout' => array('logout_path' => '/logout'),
-			'users' => $app->share(function () use ($app) {
+        'login_path' => array(
+            'pattern' => '^/login$',
+            'anonymous' => true
+        ),
+        'game' => array(
+            'pattern' => '^/',
+            'form' => array('login_path' => '/login', 'check_path' => '/login_check'),
+            'logout' => array('logout_path' => '/logout'),
+            'users' => $app->share(function () use ($app) {
                 return new UserProvider($app['db']);
             }),
-		),
-	),
-	'security.access_rules' => array(
-       	array('^/login$', 'IS_AUTHENTICATED_ANONYMOUSLY'),
-       	array('^/.+$', 'ROLE_USER'),
+        ),
+    ),
+    'security.access_rules' => array(
+        array('^/login$', 'IS_AUTHENTICATED_ANONYMOUSLY'),
+        array('^/.+$', 'ROLE_USER'),
     ),
     'security.role_hierarchy' => array(
         'ROLE_ADMIN' => array('ROLE_USER'),
@@ -91,7 +104,6 @@ $app->register(new Silex\Provider\SecurityServiceProvider(), array(
 ));
 
 $app['debug'] = true;
-
 
 $schema = $app['db']->getSchemaManager();
 if (!$schema->tablesExist('users')) {
@@ -112,26 +124,106 @@ if (!$schema->tablesExist('users')) {
     ));
 }
 
+if (!$schema->tablesExist('rooms')) {
+    $rooms = new Table('rooms');
+    $rooms->addColumn('id', 'integer', array('unsigned' => true, 'autoincrement' => true));
+    $rooms->setPrimaryKey(array('id'));
+    $rooms->addColumn('gametype', 'string', array('length' => 32));
+    $rooms->addColumn('guests', 'integer', array('unsigned' => true));
+    $rooms->addColumn('available_space', 'integer', array('unsigned' => true));
+
+    $schema->createTable($rooms);
+}
+
+if (!$schema->tablesExist('session')) {
+    $session = new Table('session');
+    $session->addColumn('session_id', 'string', array('length' => 255));
+    $session->setPrimaryKey(array('session_id'));
+    $session->addColumn('session_username', 'string', array('length' => 32));
+    $session->addColumn('session_value', 'text');
+    $session->addColumn('session_time', 'integer');
+
+    $schema->createTable($session);
+}
+
 
 $app->register(new Silex\Provider\UrlGeneratorServiceProvider());
 $app->register(new Silex\Provider\SessionServiceProvider());
+
+class PDoSessionUsernameHandler extends PdoSessionHandler {
+
+    private $usernameCol = '';
+    private $conn = null;
+    private $table = null;
+    private $idCol = null;
+
+    function __construct($conn, $db_options, $storage_options) {
+        $this->conn = $conn;
+        $this->usernameCol = $db_options['db_username_col'];
+        $this->table = $db_options['db_table'];
+        $this->idCol = $db_options['db_id_col'];
+        parent::__construct($conn, $db_options, $storage_options);
+    }
+
+    function write($sessionId, $data) {
+        $result = parent::write($sessionId, $data);
+        $data = unserialize($_SESSION['_sf2_attributes']['_security_game']);
+        $username = $data->getUser()->getUsername();
+        $updateStmt = $this->conn->prepare(
+            "UPDATE $this->table SET $this->usernameCol = :username WHERE $this->idCol = :id"
+        );
+        $updateStmt->bindParam(':id', $sessionId, \PDO::PARAM_STR);
+        $updateStmt->bindParam(':username', $username, \PDO::PARAM_STR);
+        $updateStmt->execute();
+        return $result;
+    }
+}
+
+$app['session.storage.handler'] = $app->share(function () use ($app) {
+    return new PdoSessionUsernameHandler(
+        $app['db']->getWrappedConnection(),
+        $app['session.db_options'],
+        $app['session.storage.options']
+    );
+});
 
 $app->register(new Silex\Provider\TwigServiceProvider(), array(
     'twig.path' => __DIR__.'/../views',
 ));
 
-
 $app->get('/game', function() use($app) {
-	return $app['twig']->render('game.html');
+    return $app['twig']->render('game.html', ['games' => $app['games']]);
 });
 
+$app->get('/listrooms/{gametype}', function($gametype) use ($app) {
+    if (!array_key_exists($gametype, $app['games'])) {
+        $app->abort(404, 'Gametype does not exist!');
+    }
+
+    $data = [
+        'gametype' => $gametype,
+        'gamename' => $app['games'][$gametype],
+    ];
+    return $app['twig']->render('listrooms.html', $data);
+})
+->bind('listrooms');
+
+$app->post('/createroom/{gametype}', function($gametype) use ($app) {
+    if (!array_key_exists($gametype, $app['games'])) {
+        $app->abort(404, 'Gametype does not exist!');
+    }
+
+    return $app->redirect('/listrooms/'.$gametype);
+})
+->bind('createroom');
+
 $app->get('/logout', function() use($app) {
-	return 'thisisgame';
+    return 'thisisgame';
 })
 ->bind('logout');
 
 $app->get('/', function() use($app) {
-	return $app['twig']->render('homepage.html');
+    return $app['twig']->render('homepage.html');
 });
 
 $app->get('/login', function(Request $request) use ($app) {

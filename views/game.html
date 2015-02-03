@@ -1,7 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-		list of games
+list of games
+
+<ul>
+
+{% for type, game in games %}
+    <li><a href="{{ path('listrooms', {gametype: type}) }}">{{ game }}</a></li>
+{% endfor %}
+</ul>
 
 <style>
 #chat {

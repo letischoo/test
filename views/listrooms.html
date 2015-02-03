@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+Pokoje dla gry {{ gamename }}:
+
+<form method="post" action="{{ path('createroom', {gametype: gametype})}}">
+    <button type="submit">Stwórz nowy pokój.</button>
+</form>
+
+{% endblock %}
