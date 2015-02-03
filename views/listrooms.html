@@ -4,6 +4,12 @@
 
 Pokoje dla gry {{ gamename }}:
 
+<ul>
+{% for game in games %}
+    <li><a href="{{ path('game', {room_id: game.id})}}">Room {{ game.id }}</a></li>
+{% endfor %}
+</ul>
+
 <form method="post" action="{{ path('createroom', {gametype: gametype})}}">
     <button type="submit">Stwórz nowy pokój.</button>
 </form>

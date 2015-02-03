@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 
 <html>
-	<head>
-		<script src="/assets/jquery-1.11.1.min.js"></script>
-	</head>
-	<body>
-		<a href="{{ path('logout') }}">Logout</a>
-		{% block content %}cokolwiek{% endblock %}
-	</body>
+    <head>
+        <title>{% block title %}Welcome to our game site!{% endblock %}</title>
+    </head>
+    <body>
+        <a href="{{ path('logout') }}">Logout</a>
+        {% block content %}{% endblock %}
+        {% block scripts %}
+            <script type="text/javascript" src="/assets/jquery-1.11.1.min.js"></script>
+        {% endblock %}
+    </body>
 </html>

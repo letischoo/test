@@ -129,8 +129,6 @@ if (!$schema->tablesExist('rooms')) {
     $rooms->addColumn('id', 'integer', array('unsigned' => true, 'autoincrement' => true));
     $rooms->setPrimaryKey(array('id'));
     $rooms->addColumn('gametype', 'string', array('length' => 32));
-    $rooms->addColumn('guests', 'integer', array('unsigned' => true));
-    $rooms->addColumn('available_space', 'integer', array('unsigned' => true));
 
     $schema->createTable($rooms);
 }
@@ -192,7 +190,7 @@ $app->register(new Silex\Provider\TwigServiceProvider(), array(
 ));
 
 $app->get('/game', function() use($app) {
-    return $app['twig']->render('game.html', ['games' => $app['games']]);
+    return $app['twig']->render('games.html', ['games' => $app['games']]);
 });
 
 $app->get('/listrooms/{gametype}', function($gametype) use ($app) {
@@ -200,9 +198,15 @@ $app->get('/listrooms/{gametype}', function($gametype) use ($app) {
         $app->abort(404, 'Gametype does not exist!');
     }
 
+    $games_sql = $app['db']->prepare('SELECT * FROM rooms where gametype = :gametype');
+    $games_sql->bindParam(':gametype', $gametype, \PDO::PARAM_STR);
+    $games_sql->execute();
+    $games = $games_sql->fetchAll(\PDO::FETCH_ASSOC);
+
     $data = [
         'gametype' => $gametype,
         'gamename' => $app['games'][$gametype],
+        'games' => $games,
     ];
     return $app['twig']->render('listrooms.html', $data);
 })
@@ -213,9 +217,34 @@ $app->post('/createroom/{gametype}', function($gametype) use ($app) {
         $app->abort(404, 'Gametype does not exist!');
     }
 
-    return $app->redirect('/listrooms/'.$gametype);
+    $app['db']->insert('rooms', array(
+        'gametype' => $gametype,
+    ));
+
+    return $app->redirect($app['url_generator']->generate(
+        'game', array('room_id' => $app['db']->lastInsertId())
+    ));
 })
 ->bind('createroom');
+
+$app->get('/game/{room_id}', function ($room_id) use ($app) {
+    $result = $app['db']->fetchAssoc(
+        "SELECT * FROM rooms where id = :id",
+        array('id' => (int) $room_id)
+    );
+
+    if (!$result) {
+        $app->abort(404, 'No such room!');
+    }
+
+    $data = array(
+        'game' => $result,
+    );
+
+    return $app['twig']->render('game.html', $data);
+})
+->bind('game');
+
 
 $app->get('/logout', function() use($app) {
     return 'thisisgame';
