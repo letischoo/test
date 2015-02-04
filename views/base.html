@@ -3,6 +3,9 @@
 <html>
     <head>
         <title>{% block title %}Welcome to our game site!{% endblock %}</title>
+        {% block styles %}
+            <link rel="stylesheet" href="/assets/css/style.css" />
+        {% endblock %}
     </head>
     <body>
         <a href="{{ path('logout') }}">Logout</a>
