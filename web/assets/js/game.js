@@ -9,19 +9,29 @@ $(function () {
         }
     }
 
-    ws.send(JSON.stringify('type': 'authentication', 'content': {'session_id': getCookie('PHPSESSID')}));
+    ws.onopen = function (e) {
+        msg(ws, 'authentication', {'session_id': getCookie('PHPSESSID')});
+    }
 
     $("#send").click(function(){
         var tekst = $("#msg").val();
-        send_message(ws, tekst);
+        send_chat_message(ws, tekst);
+    });
+
+    $(window).on('beforeunload', function() {
+        ws.close();
     });
 });
 
-function send_message(ws, tekst) {
+function send_chat_message(ws, tekst) {
     if (tekst.trim()) {
         ws.send(JSON.stringify({'type': 'global-message', 'content': tekst}));
         $("#msg").val("");
     }
+}
+
+function msg(ws, type, content) {
+    ws.send(JSON.stringify({'type': type, 'content': content}))
 }
 
 function getCookie(name) {
