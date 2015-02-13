@@ -9,15 +9,15 @@ var db_conn = mysql.createConnection({
 })
 
 db_conn.connect(function (err) {
-    console.log(err);
+    if (err) {
+        console.log(err);
+    }
 })
 
 var connections = [];
 
 var server = ws.createServer(function (conn) {
     connections.push(conn);
-    console.log("New connection")
-    console.log("Sum of clients: ", connections.length);
     conn.on("text", function (msg) {
         data = JSON.parse(msg);
         handle_message(conn, data);
@@ -31,19 +31,36 @@ function handle_message(conn, data) {
     if (data.type == 'global-message') {
         handle_global_message(conn, data);
     } else if (data.type == 'authentication') {
-        db_conn.query(
-            'SELECT * FROM session where ?',
-            {session_id: data.content.session_id},
-            function (err, rows, fields) {
-                if (rows.length) {
-                    console.log(rows[0].session_username)
-                }
-            }
-        )
+        handle_authorization(conn, data);
+    } else if (data.type == 'join-room') {
+        handle_join_room(conn, data);
     } else {
         console.log('Wrong message!');
         console.log(data);
     }
+}
+
+function handle_authorization(conn, data) {
+    db_conn.query(
+        'SELECT * FROM session where ?',
+        {session_id: data.content.session_id},
+        function (err, rows, fields) {
+            if (rows.length) {
+                conn.username = rows[0].session_username;
+                conn.sendText(JSON.stringify({
+                    'type': 'auth-success',
+                    'content': 'Authorization successful.',
+                    }
+                ));
+            } else {
+                conn.sendText(JSON.stringify({
+                    'type': 'error',
+                    'content': 'Authorization error.',
+                    }
+                ));
+            }
+        }
+    )
 }
 
 function handle_global_message(conn, data) {
@@ -59,10 +76,10 @@ function handle_global_message(conn, data) {
 }
 
 function handle_close(conn, code, reason) {
-    console.log("Connection closed")
-    console.log(reason);
     var index = connections.indexOf(conn);
-    console.log(index);
     connections.splice(index, 1);
-    console.log("Sum of clients: ", connections.length);
+}
+
+function handle_join_room(conn, data) {
+    console.log(conn.username);
 }
