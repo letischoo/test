@@ -1,3 +1,5 @@
+var rooms = {};
+
 $(function () {
     var ws = new WebSocket("ws://localhost:8001");
     ws.onmessage = function(msg) {
@@ -5,12 +7,16 @@ $(function () {
         if (data.type == 'global-message') {
             $("#chat").append(data.content.name + ": " + data.content.message + "<br>");
         } else if (data.type == 'error') {
+            alert(data.content);
             throw Error(data.content);
         } else if (data.type == 'auth-success') {
             connect_to_game(ws);
+        } else if (data.type == 'joined-room') {
+            initialize_game(ws, data.content);
         } else {
             console.log(data);
         }
+        console.log(data);  // FIXME
     }
 
     ws.onopen = function (e) {
@@ -60,4 +66,19 @@ function join_room(ws, room_id) {
             'room_id': room_id,
         }
     }))
+}
+
+function initialize_game(ws, content) {
+    var root = $('#gameroot');
+    var ready_button = $('<button>Gotowy</button>');
+    root.find('.interface').append(ready_button);
+    ready_button.click(function (e) {
+        ws.send(JSON.stringify({
+            'type': 'game-data',
+            'room_id': content.room_id,
+            'content': {
+                'msg': 'client-ready',
+            }
+        }));
+    })
 }
