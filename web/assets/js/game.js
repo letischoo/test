@@ -13,6 +13,8 @@ $(function () {
             connect_to_game(ws);
         } else if (data.type == 'joined-room') {
             initialize_game(ws, data.content);
+        } else if (data.type == 'game-data') {
+            rooms[data.content.room_id].handle_game_data(data.content);
         } else {
             console.log(data);
         }
@@ -70,15 +72,67 @@ function join_room(ws, room_id) {
 
 function initialize_game(ws, content) {
     var root = $('#gameroot');
+    var room_id = content.room_id
+    rooms[room_id] = new gametype_game_map[content.gametype](ws, root, room_id)
+    rooms[room_id].boot();
+}
+
+function NoughtsAndCrosses(conn, root, room_id) {
+    this.ready = false;
+    this.conn = conn;
+    this.room_id = room_id;
+
     var ready_button = $('<button>Gotowy</button>');
     root.find('.interface').append(ready_button);
+    this.user_list_container = root.find('.user-list');
+
     ready_button.click(function (e) {
-        ws.send(JSON.stringify({
+        conn.send(JSON.stringify({
             'type': 'game-data',
-            'room_id': content.room_id,
             'content': {
+                'room_id': room_id,
                 'msg': 'client-ready',
             }
         }));
     })
+
+    this.handle_game_data = function (data) {
+        if (data.msg == 'ready-ack') {
+            this.ready();
+        } else if (data.msg == 'user-list') {
+            this._render_user_list(data);
+        }
+        console.log(data);
+    }
+
+    this.ready = function () {
+        this.ready = true;
+        ready_button.hide();
+    }
+
+    this.boot = function () {
+        this.refresh_user_list();
+    }
+
+    this.refresh_user_list = function () {
+        this.conn.send(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'room_id': room_id,
+                'msg': 'refresh-user-list',
+            }
+        }));
+    }
+
+    this._render_user_list = function (data) {
+        var list = $('<ul>');
+        for (var i = 0; i < data.guests.length; i++) {
+            list.append($('<li>' + data.guests[i] + '</li>'));
+        }
+        this.user_list_container.append(list);
+    }
+}
+
+var gametype_game_map = {
+    'noughsandcrosses': NoughtsAndCrosses,
 }

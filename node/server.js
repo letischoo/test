@@ -29,6 +29,7 @@ var server = ws.createServer(function (conn) {
 }).listen(8001);
 
 function handle_message(conn, data) {
+    console.log(data);  // Debug
     content = data.content
     if (data.type == 'global-message') {
         handle_global_message(conn, content);
@@ -37,7 +38,7 @@ function handle_message(conn, data) {
     } else if (data.type == 'join-room') {
         handle_join_room(conn, content);
     } else if (data.type == 'game-data') {
-        handle_game_data(conn, data.room_id, content);
+        handle_game_data(conn, content);
     } else {
         console.log('Wrong message!');
         console.log(data);
@@ -128,13 +129,13 @@ function handle_join_room(conn, content) {
     get_room(content.room_id, callback, err_callback);
 }
 
-function handle_game_data(conn, room_id, content) {
+function handle_game_data(conn, content) {
     if (!conn.username) {
         return not_authorized_error(conn);
     }
 
     callback = function(room) {
-        room.game.handle_signal(content);
+        room.game.handle_signal(conn, content);
     }
 
     err_callback = function(err) {
@@ -144,7 +145,7 @@ function handle_game_data(conn, room_id, content) {
         }));
     }
 
-    get_room(room_id, callback, err_callback);
+    get_room(content.room_id, callback, err_callback);
 }
 
 function get_room(id, callback, err_callback) {
@@ -169,6 +170,7 @@ function get_room(id, callback, err_callback) {
 
 function Room(id, gametype) {
     this.id = id;
+    this.gametype = gametype;
     this.game = new gametype_game_map[gametype](this)
 }
 
@@ -197,11 +199,44 @@ function NoughtsAndCrosses(room) {
         return Object.keys(this.guests).length;
     }
 
-    this.handle_signal = function (content) {
+    this.handle_signal = function (conn, content) {
+        if (content.msg == 'client-ready') {
+            conn.sendText(JSON.stringify({
+                'type': 'game-data',
+                'content': {
+                    'room_id': this.room.id,
+                    'msg': 'ready-ack',
+                }
+            }));
+        } else if (content.msg == 'refresh-user-list') {
+            this.refresh_user_list_for(conn);
+        }
         console.log(content);
+    }
+
+    this.refresh_user_list_for = function (conn) {
+        conn.sendText(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'msg': 'user-list',
+                'room_id': this.room.id,
+                'guests': Object.keys(this.guests),
+            }
+        }));
     }
 }
 
 var gametype_game_map = {
     'noughsandcrosses': NoughtsAndCrosses,
+}
+
+function handle_force_user_list_refresh(conn, content) {
+    if (!conn.username) {
+        return not_authorized_error(conn);
+    }
+
+    var room_id = content.room_id;
+    if (rooms[room_id]) {
+        rooms[room_id].game.refresh_user_list_for(conn);
+    }
 }
