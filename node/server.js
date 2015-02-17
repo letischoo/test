@@ -87,6 +87,10 @@ function not_authorized_error(conn) {
 function handle_close(conn, code, reason) {
     var index = connections.indexOf(conn);
     connections.splice(index, 1);
+
+    for (var key in rooms) {
+        rooms[key].game.disconnect(conn);
+    }
 }
 
 function handle_join_room(conn, content) {
@@ -99,8 +103,7 @@ function handle_join_room(conn, content) {
             conn.sendText(JSON.stringify({
                 'type': 'error',
                 'content': 'No such error.',
-                }
-            ));
+            }));
         }
         result = room.game.add_guest(conn);
         if (result) {
@@ -192,6 +195,7 @@ function NoughtsAndCrosses(room) {
         }
 
         this.guests[key] = [conn];
+        this.refresh_all_user_lists();
         return true;
     }
 
@@ -214,6 +218,15 @@ function NoughtsAndCrosses(room) {
         console.log(content);
     }
 
+    this.refresh_all_user_lists = function () {
+        for (key in this.guests) {
+            var guest_conn = this.guests[key];
+            for (var i = 0; i < guest_conn.length; i++) {
+                this.refresh_user_list_for(guest_conn[i]);
+            }
+        }
+    }
+
     this.refresh_user_list_for = function (conn) {
         conn.sendText(JSON.stringify({
             'type': 'game-data',
@@ -223,6 +236,21 @@ function NoughtsAndCrosses(room) {
                 'guests': Object.keys(this.guests),
             }
         }));
+    }
+
+    this.disconnect = function (conn) {
+        if (this.guests[conn.username]) {
+            conns = this.guests[conn.username];
+            var index = conns.indexOf(conn);
+            if (index > -1) {
+                conns.splice(index, 1);
+            }
+
+            if (conns.length == 0) {
+                delete this.guests[conn.username];
+                this.refresh_all_user_lists();
+            }
+        }
     }
 }
 

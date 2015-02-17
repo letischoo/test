@@ -14,7 +14,9 @@ $(function () {
         } else if (data.type == 'joined-room') {
             initialize_game(ws, data.content);
         } else if (data.type == 'game-data') {
-            rooms[data.content.room_id].handle_game_data(data.content);
+            if (rooms[data.content.room_id]) {
+                rooms[data.content.room_id].handle_game_data(data.content);
+            }
         } else {
             console.log(data);
         }
@@ -102,7 +104,7 @@ function NoughtsAndCrosses(conn, root, room_id) {
         } else if (data.msg == 'user-list') {
             this._render_user_list(data);
         }
-        console.log(data);
+        console.log(data);  // DEBUG
     }
 
     this.ready = function () {
@@ -129,7 +131,7 @@ function NoughtsAndCrosses(conn, root, room_id) {
         for (var i = 0; i < data.guests.length; i++) {
             list.append($('<li>' + data.guests[i] + '</li>'));
         }
-        this.user_list_container.append(list);
+        this.user_list_container.empty().append(list);
     }
 }
 
