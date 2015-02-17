@@ -128,8 +128,9 @@ function NoughtsAndCrosses(conn, root, room_id) {
 
     this._render_user_list = function (data) {
         var list = $('<ul>');
-        for (var i = 0; i < data.guests.length; i++) {
-            list.append($('<li>' + data.guests[i] + '</li>'));
+        for (var key in data.guests) {
+            var status = data.guests[key].status
+            list.append($('<li>' + key + ' - ' + status + '</li>'));
         }
         this.user_list_container.empty().append(list);
     }

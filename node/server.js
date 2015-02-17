@@ -212,6 +212,9 @@ function NoughtsAndCrosses(room) {
                     'msg': 'ready-ack',
                 }
             }));
+            this.guests[conn.username].ready = true;
+            this.refresh_all_user_lists();
+            this.maybe_start();
         } else if (content.msg == 'refresh-user-list') {
             this.refresh_user_list_for(conn);
         }
@@ -233,9 +236,38 @@ function NoughtsAndCrosses(room) {
             'content': {
                 'msg': 'user-list',
                 'room_id': this.room.id,
-                'guests': Object.keys(this.guests),
+                'guests': this.get_guest_list(),
             }
         }));
+    }
+
+    this.get_guest_list = function () {
+        var list = {};
+        for (var key in this.guests) {
+            var status = 'waiting';
+            if (this.guests[key].ready) {
+                status = 'ready';
+            }
+            list[key] = {'status': status};
+        }
+        return list;
+    }
+
+    this.are_all_ready = function() {
+        for (var key in this.guests) {
+            if (!this.guests[key].ready) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    this.maybe_start = function () {
+        if (this.guests_amount() == 2 && this.are_all_ready()) {
+            console.log('can start');
+        } else {
+            console.log('still waiting...')
+        }
     }
 
     this.disconnect = function (conn) {
