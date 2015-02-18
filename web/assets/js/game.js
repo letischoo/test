@@ -18,9 +18,8 @@ $(function () {
                 rooms[data.content.room_id].handle_game_data(data.content);
             }
         } else {
-            console.log(data);
+            console.log(data); // DEBUG
         }
-        console.log(data);  // FIXME
     }
 
     ws.onopen = function (e) {
@@ -87,6 +86,33 @@ function NoughtsAndCrosses(conn, root, room_id) {
     var ready_button = $('<button>Gotowy</button>');
     root.find('.interface').append(ready_button);
     this.user_list_container = root.find('.user-list');
+    this.canvas = root.find('.canvas');
+
+    this.fields = [];
+    for (var i = 0; i < 3; i++) {
+        var row_div = $('<div>');
+        var fields_row = [];
+        for (var j = 0; j < 3; j++) {
+            var bt = $('<button>&nbsp;</button>')
+            bt.data('row', i);
+            bt.data('column', j);
+            bt.click(function (ev) {
+                conn.send(JSON.stringify({
+                    'type': 'game-data',
+                    'content': {
+                        'room_id': room_id,
+                        'msg': 'move',
+                        'row': $(this).data('row'),
+                        'column': $(this).data('column'),
+                    }
+                }))
+            });
+            row_div.append(bt);
+            fields_row.push(bt);
+        }
+        this.canvas.append(row_div);
+        this.fields.push(fields_row);
+    }
 
     ready_button.click(function (e) {
         conn.send(JSON.stringify({
@@ -103,8 +129,25 @@ function NoughtsAndCrosses(conn, root, room_id) {
             this.ready();
         } else if (data.msg == 'user-list') {
             this._render_user_list(data);
+        } else if (data.msg == 'board') {
+            this._render_board(data);
+        } else if (data.msg == 'won') {
+            alert("Wygrałeś :)");
+        } else if (data.msg == 'lost') {
+            alert("Przegrałeś :(");
+        } else if (data.msg == 'draw') {
+            alert("Remis :O");
+        } else {
+            console.log(data);  // DEBUG
         }
-        console.log(data);  // DEBUG
+    }
+
+    this._render_board = function (data) {
+        for (var i = 0; i < 3; i++) {
+            for (var j = 0; j < 3; j++) {
+                this.fields[i][j].html(data.board[i][j] || '&nbsp;');
+            }
+        }
     }
 
     this.ready = function () {
@@ -130,7 +173,11 @@ function NoughtsAndCrosses(conn, root, room_id) {
         var list = $('<ul>');
         for (var key in data.guests) {
             var status = data.guests[key].status
-            list.append($('<li>' + key + ' - ' + status + '</li>'));
+            var txt = key;
+            if (status) {
+                txt += ' - ' + status
+            }
+            list.append($('<li>' + txt + '</li>'));
         }
         this.user_list_container.empty().append(list);
     }
