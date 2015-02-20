@@ -4,21 +4,31 @@ $(function () {
     var ws = new WebSocket("ws://localhost:8001");
     ws.onmessage = function(msg) {
         data = JSON.parse(msg.data);
-        if (data.type == 'global-message') {
-            $("#chat").append(data.content.name + ": " + data.content.message + "<br>");
-        } else if (data.type == 'error') {
-            alert(data.content);
-            throw Error(data.content);
-        } else if (data.type == 'auth-success') {
-            connect_to_game(ws);
-        } else if (data.type == 'joined-room') {
-            initialize_game(ws, data.content);
-        } else if (data.type == 'game-data') {
-            if (rooms[data.content.room_id]) {
-                rooms[data.content.room_id].handle_game_data(data.content);
-            }
-        } else {
-            console.log(data); // DEBUG
+
+        switch (data.type) {
+            case 'global-message':
+                $("#chat").append(data.content.name + ": " + data.content.message + "<br>");
+                break;
+
+            case 'error':
+                alert(data.content);
+                throw Error(data.content);
+
+            case 'auth-success':
+                connect_to_game(ws);
+                break;
+
+            case 'joined-room':
+                initialize_game(ws, data.content);
+                break;
+
+            case 'game-data':
+                if (rooms[data.content.room_id]) {
+                    rooms[data.content.room_id].handle_game_data(data.content);
+                }
+
+            default:
+                console.log(data);
         }
     }
 
@@ -125,20 +135,33 @@ function NoughtsAndCrosses(conn, root, room_id) {
     })
 
     this.handle_game_data = function (data) {
-        if (data.msg == 'ready-ack') {
-            this.ready();
-        } else if (data.msg == 'user-list') {
-            this._render_user_list(data);
-        } else if (data.msg == 'board') {
-            this._render_board(data);
-        } else if (data.msg == 'won') {
-            alert("Wygrałeś :)");
-        } else if (data.msg == 'lost') {
-            alert("Przegrałeś :(");
-        } else if (data.msg == 'draw') {
-            alert("Remis :O");
-        } else {
-            console.log(data);  // DEBUG
+        switch (data.msg) {
+            case 'ready-ack':
+                this.ready();
+                break;
+
+            case 'user-list':
+                this._render_user_list(data);
+                break;
+
+            case 'board':
+                this._render_board(data);
+                break;
+
+            case 'won':
+                alert("Wygrałeś :)");
+                break;
+
+            case 'lost':
+                alert("Przegrałeś :(");
+                break;
+
+            case 'draw':
+                alert("Remis :O");
+                break;
+
+            default:
+                console.log(data);
         }
     }
 

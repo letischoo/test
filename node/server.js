@@ -44,6 +44,14 @@ function handle_message(conn, data) {
     }
 }
 
+function is_true(value, index, array) {
+    return !!value;
+}
+
+function send(socket, content) {
+    socket.sendText(JSON.stringify(content))
+}
+
 function handle_authorization(conn, content) {
     db_conn.query(
         'SELECT * FROM session where ?',
@@ -51,11 +59,11 @@ function handle_authorization(conn, content) {
         function (err, rows, fields) {
             if (rows.length) {
                 conn.username = rows[0].session_username;
-                conn.sendText(JSON.stringify({
+                var msg = {
                     'type': 'auth-success',
                     'content': 'Authorization successful.',
-                    }
-                ));
+                };
+                send(conn, msg);
             } else {
                 return not_authorized_error(conn);
             }
@@ -65,22 +73,23 @@ function handle_authorization(conn, content) {
 
 function handle_global_message(conn, content) {
     for (var i = 0; i < connections.length; i++) {
-        connections[i].sendText(JSON.stringify({
+        var msg = {
             'type': 'global-message',
             'content': {
                 'name': connections.indexOf(conn),
-                'message': content.toLowerCase()+"."}
+                'message': content.toLowerCase()+".",
             }
-        ));
+        };
+        send(connections[i], msg);
     }
 }
 
 function not_authorized_error(conn) {
-    conn.sendText(JSON.stringify({
+    var msg = {
         'type': 'error',
         'content': 'Authorization error.',
-        }
-    ));
+    };
+    send(conn, msg);
 }
 
 function handle_close(conn, code, reason) {
@@ -88,7 +97,7 @@ function handle_close(conn, code, reason) {
     connections.splice(index, 1);
 
     for (var key in rooms) {
-        rooms[key].game.disconnect(conn);
+        rooms[key].disconnect(conn);
     }
 }
 
@@ -99,33 +108,36 @@ function handle_join_room(conn, content) {
 
     callback = function(room) {
         if (!room) {
-            conn.sendText(JSON.stringify({
+            var msg = {
                 'type': 'error',
-                'content': 'No such error.',
-            }));
+                'content': 'No such room.',
+            };
+            return send(conn, msg);
         }
-        result = room.game.add_guest(conn);
+        result = room.add_guest(conn);
         if (result) {
-            conn.sendText(JSON.stringify({
+            var msg = {
                 'type': 'joined-room',
                 'content': {
                     'room_id': room.id,
                     'gametype': room.gametype,
                 }
-            }));
+            };
         } else {
-            conn.sendText(JSON.stringify({
+            var msg = {
                 'type': 'error',
                 'content': "Can't join room.",
-            }));
+            };
         }
+        send(conn, msg);
     }
 
     err_callback = function(err) {
-        conn.sendText(JSON.stringify({
+        var msg = {
             'type': 'error',
             'content': "Room doesn't exist.",
-        }));
+        };
+        send(conn, msg);
     }
 
     get_room(content.room_id, callback, err_callback);
@@ -141,10 +153,11 @@ function handle_game_data(conn, content) {
     }
 
     err_callback = function(err) {
-        conn.sendText(JSON.stringify({
+        var msg = {
             'type': 'error',
             'content': "Room doesn't exist.",
-        }));
+        };
+        send(conn, msg);
     }
 
     get_room(content.room_id, callback, err_callback);
@@ -174,21 +187,7 @@ function Room(id, gametype) {
     this.id = id;
     this.gametype = gametype;
     this.game = new gametype_game_map[gametype](this)
-}
-
-function NoughtsAndCrosses(room) {
-    this._limit = 2;
-    this.state = 'init';
-
-    this.room = room;
     this.guests = {};
-
-    this.player1 = null;
-    this.player2 = null;
-    this.actual_player = null;
-    this.signs = {};
-
-    this.board = [[null, null, null], [null, null, null], [null, null, null]]
 
     this.add_guest = function(conn) {
         var key = conn.username;
@@ -197,13 +196,13 @@ function NoughtsAndCrosses(room) {
             return true;
         }
 
-        if (!(this.guests_amount() < this._limit)) {
+        if (!(this.game.can_add_guest(conn))) {
             return false;
         }
 
         this.guests[key] = [conn];
         this.guests[key].status = 'waiting';
-        this.refresh_all_user_lists();
+        this.game.refresh();
         return true;
     }
 
@@ -211,24 +210,95 @@ function NoughtsAndCrosses(room) {
         return Object.keys(this.guests).length;
     }
 
+    this.are_all_ready = function() {
+        for (var key in this.guests) {
+            if (this.guests[key].status != 'ready') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    this.get_guest_list = function () {
+        var list = {};
+        for (var key in this.guests) {
+            list[key] = {'status': this.guests[key].status};
+        }
+        return list;
+    }
+
+    this.disconnect = function (conn) {
+        if (this.guests[conn.username]) {
+            conns = this.guests[conn.username];
+            var index = conns.indexOf(conn);
+            if (index > -1) {
+                conns.splice(index, 1);
+            }
+
+            if (conns.length == 0) {
+                delete this.guests[conn.username];
+                this.game.refresh();
+            }
+        }
+    }
+
+    this.send_to_all = function (msg) {
+        for (key in this.guests) {
+            var guest_conn = this.guests[key];
+            for (var i = 0; i < guest_conn.length; i++) {
+                send(guest_conn[i], msg);
+            }
+        }
+    }
+}
+
+function NoughtsAndCrosses(room) {
+    this._limit = 2;
+    this.state = 'init';
+
+    this.room = room;
+
+    this.player1 = null;
+    this.player2 = null;
+    this.actual_player = null;
+    this.signs = {};
+
+    this.board = [[null, null, null], [null, null, null], [null, null, null]]
+
+    this.refresh = function () {
+        this.refresh_all_user_lists();
+    }
+
+    this.can_add_guest = function (conn) {
+        return this.room.guests_amount() < this._limit;
+    }
+
     this.handle_signal = function (conn, content) {
-        if (content.msg == 'client-ready') {
-            conn.sendText(JSON.stringify({
-                'type': 'game-data',
-                'content': {
-                    'room_id': this.room.id,
-                    'msg': 'ready-ack',
-                }
-            }));
-            this.guests[conn.username].status = 'ready';
-            this.refresh_all_user_lists();
-            this.maybe_start();
-        } else if (content.msg == 'refresh-user-list') {
-            this.refresh_user_list_for(conn);
-        } else if (content.msg == 'move') {
-            this.handle_move(conn, content);
-        } else {
-            console.log(content); // DEBUG
+        switch (content.msg) {
+            case 'client-ready':
+                var msg = {
+                    'type': 'game-data',
+                    'content': {
+                        'room_id': this.room.id,
+                        'msg': 'ready-ack',
+                    }
+                };
+                send(conn, msg);
+                this.room.guests[conn.username].status = 'ready';
+                this.refresh_all_user_lists();
+                this.maybe_start();
+                break;
+
+            case 'refresh-user-list':
+                this.refresh_user_list_for(conn);
+                break;
+
+            case 'move':
+                this.handle_move(conn, content);
+                break;
+
+            default:
+                console.log(content);
         }
     }
 
@@ -245,9 +315,11 @@ function NoughtsAndCrosses(room) {
 
         var row = content['row'];
         var column = content['column'];
-        if (!(this.board[row][column])) {
-            this.board[row][column] = sign;
+        if (this.board[row][column]) {
+            return;
         }
+
+        this.board[row][column] = sign;
         this.refresh_board();
         this.maybe_end();
         this.switch_players();
@@ -259,8 +331,7 @@ function NoughtsAndCrosses(room) {
             var player = players[i];
             var sign = this.signs[player];
             if (this.sign_wins(sign)) {
-                this.set_winner(player);
-                return;
+                return this.set_winner(player);
             }
         }
         if (this.board_is_full()) {
@@ -282,18 +353,15 @@ function NoughtsAndCrosses(room) {
     this.set_draw = function () {
         this.stop();
 
-        for (key in this.guests) {
-            var guest_conn = this.guests[key];
-            for (var i = 0; i < guest_conn.length; i++) {
-                guest_conn[i].sendText(JSON.stringify({
-                    'type': 'game-data',
-                    'content': {
-                        'msg': 'draw',
-                        'room_id': this.room.id,
-                    }
-                }));
+        var msg = {
+            'type': 'game-data',
+            'content': {
+                'msg': 'draw',
+                'room_id': this.room.id,
             }
         }
+
+        this.room.send_to_all(msg);
     }
 
     this.stop = function () {
@@ -303,27 +371,28 @@ function NoughtsAndCrosses(room) {
     this.set_winner = function (player) {
         this.stop();
 
-        for (key in this.guests) {
-            var guest_conn = this.guests[key];
+        for (key in this.room.guests) {
+            var guest_conn = this.room.guests[key];
             for (var i = 0; i < guest_conn.length; i++) {
-                guest_conn[i].sendText(JSON.stringify({
+                var msg = {
                     'type': 'game-data',
                     'content': {
                         'msg': key == player ? 'won' : 'lost',
                         'room_id': this.room.id,
                     }
-                }));
+                };
+                send(guest_conn[i], msg);
             }
         }
     }
 
     this.sign_wins = function (sign) {
-        if (this.match_columns(sign)
-            || this.match_rows(sign)
-            || this.match_slants(sign)) {
-            return true;
-        }
-        return false;
+        var conditions = [
+            this.match_columns(sign),
+            this.match_rows(sign),
+            this.match_slants(sign),
+        ]
+        return conditions.some(is_true);
     }
 
     this.match_columns = function (sign) {
@@ -356,10 +425,11 @@ function NoughtsAndCrosses(room) {
         board = this.board;
         var left = [sign, board[0][0], board[1][1], board[2][2]];
         var right = [sign, board[0][2], board[1][1], board[2][0]];
-        if (all_the_same(left) || all_the_same(right)) {
-            return true;
-        }
-        return false;
+        var conditions = [
+            all_the_same(left),
+            all_the_same(right),
+        ];
+        return conditions.some(is_true);
     }
 
     this.switch_players = function () {
@@ -371,60 +441,41 @@ function NoughtsAndCrosses(room) {
     }
 
     this.refresh_board = function () {
-        for (key in this.guests) {
-            var guest_conn = this.guests[key];
-            for (var i = 0; i < guest_conn.length; i++) {
-                guest_conn[i].sendText(JSON.stringify({
-                    'type': 'game-data',
-                    'content': {
-                        'msg': 'board',
-                        'room_id': this.room.id,
-                        'board': this.board,
-                    }
-                }));
+        var msg = {
+            'type': 'game-data',
+            'content': {
+                'msg': 'board',
+                'room_id': this.room.id,
+                'board': this.board,
             }
-        }
+        };
+        this.room.send_to_all(msg);
     }
 
-    this.refresh_all_user_lists = function () {
-        for (key in this.guests) {
-            var guest_conn = this.guests[key];
-            for (var i = 0; i < guest_conn.length; i++) {
-                this.refresh_user_list_for(guest_conn[i]);
-            }
-        }
-    }
-
-    this.refresh_user_list_for = function (conn) {
-        conn.sendText(JSON.stringify({
+    this.get_user_list = function () {
+        return {
             'type': 'game-data',
             'content': {
                 'msg': 'user-list',
                 'room_id': this.room.id,
-                'guests': this.get_guest_list(),
+                'guests': this.room.get_guest_list(),
             }
-        }));
+        };
+
     }
 
-    this.get_guest_list = function () {
-        var list = {};
-        for (var key in this.guests) {
-            list[key] = {'status': this.guests[key].status};
-        }
-        return list;
+    this.refresh_all_user_lists = function () {
+        var msg = this.get_user_list();
+        this.room.send_to_all(msg);
     }
 
-    this.are_all_ready = function() {
-        for (var key in this.guests) {
-            if (this.guests[key].status != 'ready') {
-                return false;
-            }
-        }
-        return true;
+    this.refresh_user_list_for = function (conn) {
+        var msg = this.get_user_list();
+        send(conn, msg);
     }
 
     this.maybe_start = function () {
-        if (this.guests_amount() == 2 && this.are_all_ready()) {
+        if (this.room.guests_amount() == 2 && this.room.are_all_ready()) {
             this.start();
         }
     }
@@ -435,7 +486,7 @@ function NoughtsAndCrosses(room) {
         }
 
         this.clean_user_statuses();
-        var players = Object.keys(this.guests);
+        var players = Object.keys(this.room.guests);
         this.player1 = players[0];
         this.player2 = players[1];
         this.signs[players[0]] = 'X';
@@ -445,25 +496,10 @@ function NoughtsAndCrosses(room) {
     }
 
     this.clean_user_statuses = function () {
-        for (var key in this.guests) {
-            this.guests[key].status = null;
+        for (var key in this.room.guests) {
+            this.room.guests[key].status = null;
         }
         this.refresh_all_user_lists();
-    }
-
-    this.disconnect = function (conn) {
-        if (this.guests[conn.username]) {
-            conns = this.guests[conn.username];
-            var index = conns.indexOf(conn);
-            if (index > -1) {
-                conns.splice(index, 1);
-            }
-
-            if (conns.length == 0) {
-                delete this.guests[conn.username];
-                this.refresh_all_user_lists();
-            }
-        }
     }
 }
 
