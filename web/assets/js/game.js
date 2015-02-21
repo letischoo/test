@@ -1,5 +1,12 @@
 var rooms = {};
 
+function send(socket, type, data) {
+    return socket.send(JSON.stringify({
+        'type': type,
+        'content': data,
+    }))
+}
+
 $(function () {
     var ws = new WebSocket("ws://localhost:8001");
     ws.onmessage = function(msg) {
@@ -34,7 +41,7 @@ $(function () {
     }
 
     ws.onopen = function (e) {
-        msg(ws, 'authentication', {'session_id': getCookie('PHPSESSID')});
+        send(ws, 'authentication', {'session_id': getCookie('PHPSESSID')});
     }
 
     $("#send").click(function(){
@@ -49,13 +56,9 @@ $(function () {
 
 function send_chat_message(ws, tekst) {
     if (tekst.trim()) {
-        ws.send(JSON.stringify({'type': 'global-message', 'content': tekst}));
+        send(ws, 'global-message', tekst);
         $("#msg").val("");
     }
-}
-
-function msg(ws, type, content) {
-    ws.send(JSON.stringify({'type': type, 'content': content}))
 }
 
 function getCookie(name) {
@@ -74,12 +77,7 @@ function connect_to_game(ws) {
 }
 
 function join_room(ws, room_id) {
-    ws.send(JSON.stringify({
-        'type': 'join-room',
-        'content': {
-            'room_id': room_id,
-        }
-    }))
+    send(ws, 'join-room', {'room_id': room_id});
 }
 
 function initialize_game(ws, content) {
@@ -104,14 +102,8 @@ function NoughtsAndCrosses(conn, root, room_id) {
     this.room_msg_interface = root.find('.messages-interface');
 
     ready_button.click(function (e) {
-        conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'client-ready',
-            }
-        }));
-    })
+        send(conn, 'game-data', {'room_id': room_id, 'msg': 'client-ready'});
+    });
 
     this.ready_button = ready_button;
 
@@ -121,14 +113,8 @@ function NoughtsAndCrosses(conn, root, room_id) {
     this.canvas = root.find('.canvas');
 
     retry_button.click(function (e) {
-        conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'retry',
-            }
-        }));
-    })
+        send(conn, 'game-data', {'room_id': room_id, 'msg': 'retry'});
+    });
 
     this.retry_button = retry_button;
 
@@ -139,7 +125,7 @@ function NoughtsAndCrosses(conn, root, room_id) {
             game.send_message(txt);
             input.val('');
         }
-    })
+    });
 
     this.fields = [];
     for (var i = 0; i < 3; i++) {
@@ -150,15 +136,12 @@ function NoughtsAndCrosses(conn, root, room_id) {
             bt.data('row', i);
             bt.data('column', j);
             bt.click(function (ev) {
-                conn.send(JSON.stringify({
-                    'type': 'game-data',
-                    'content': {
-                        'room_id': room_id,
-                        'msg': 'move',
-                        'row': $(this).data('row'),
-                        'column': $(this).data('column'),
-                    }
-                }))
+                send(conn, 'game-data', {
+                    'room_id': room_id,
+                    'msg': 'move',
+                    'row': $(this).data('row'),
+                    'column': $(this).data('column'),
+                });
             });
             row_div.append(bt);
             fields_row.push(bt);
@@ -224,14 +207,11 @@ function NoughtsAndCrosses(conn, root, room_id) {
     }
 
     this.send_message = function (txt) {
-        this.conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'room-msg',
-                'message': txt,
-            }
-        }));
+        send(this.conn, 'game-data', {
+            'room_id': room_id,
+            'msg': 'room-msg',
+            'message': txt,
+        });
     }
 
     this.handle_state = function (data) {
@@ -262,23 +242,17 @@ function NoughtsAndCrosses(conn, root, room_id) {
     }
 
     this.get_state = function () {
-        this.conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'get-my-state',
-            }
-        }));
+        send(this.conn, 'game-data', {
+            'room_id': room_id,
+            'msg': 'get-my-state',
+        });
     }
 
     this.refresh_user_list = function () {
-        this.conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'refresh-user-list',
-            }
-        }));
+        send(this.conn, 'game-data', {
+            'room_id': room_id,
+            'msg': 'refresh-user-list',
+        });
     }
 
     this._render_user_list = function (data) {
