@@ -82,7 +82,7 @@ $app['games'] = [
 $app->register(new Silex\Provider\SecurityServiceProvider(), array(
     'security.firewalls' => array(
         'login_path' => array(
-            'pattern' => '^/login$',
+            'pattern' => '^/(register|login)$',
             'anonymous' => true
         ),
         'game' => array(
@@ -95,7 +95,7 @@ $app->register(new Silex\Provider\SecurityServiceProvider(), array(
         ),
     ),
     'security.access_rules' => array(
-        array('^/login$', 'IS_AUTHENTICATED_ANONYMOUSLY'),
+        array('^/(login|register)$', 'IS_AUTHENTICATED_ANONYMOUSLY'),
         array('^/.+$', 'ROLE_USER'),
     ),
     'security.role_hierarchy' => array(
@@ -116,12 +116,6 @@ if (!$schema->tablesExist('users')) {
     $users->addColumn('roles', 'string', array('length' => 255));
 
     $schema->createTable($users);
-
-    $app['db']->insert('users', array(
-      'username' => 'admin',
-      'password' => '5FZ2Z8QIkA7UTZ4BYkoC+GsReLf569mSKDsfods6LYQ8t+a8EW9oaircfMpmaLbPBh4FOBiiFyLfuZmTSUwzZg==',
-      'roles' => 'ROLE_ADMIN'
-    ));
 }
 
 if (!$schema->tablesExist('rooms')) {
@@ -255,9 +249,56 @@ $app->get('/', function() use($app) {
     return $app['twig']->render('homepage.html');
 });
 
+$app->get('/register', function() use($app) {
+    return $app['twig']->render('register.html', ['error' => null]);
+})
+->bind('register');
+
+$app->post('/register', function(Request $request) use($app) {
+    $req = $request->request;
+    $username = (string) $req->get('username');
+    $password = (string) $req->get('password');
+    $password_repeat = (string) $req->get('password_repeat');
+
+    if (!$username) {
+        return $app['twig']->render('register.html',
+            ['error' => 'Podaj login.']);
+    }
+
+    $result = $app['db']->fetchAssoc(
+        "SELECT * FROM users where username = :username",
+        array('username' => $username)
+    );
+
+    if ($result) {
+        return $app['twig']->render('register.html',
+            ['error' => 'Użytkownik o takim loginie już istnieje.']);
+    }
+
+    if (!$password) {
+        return $app['twig']->render('register.html',
+            ['error' => 'Podaj hasło.']);
+    }
+
+    if ($password !== $password_repeat) {
+        return $app['twig']->render('register.html',
+            ['error' => 'Hasła nie zgadzają się.']);
+    }
+
+    $hashed_password = $app['security.encoder.digest']->encodePassword($password);
+
+    $app['db']->insert('users', array(
+        'username' => $username,
+        'password' => $hashed_password,
+        'roles' => 'ROLE_USER',
+    ));
+
+    return $app->redirect('/login');
+});
+
 $app->get('/login', function(Request $request) use ($app) {
     return $app['twig']->render('login.html', array(
-        'error'         => $app['security.last_error']($request),
+        'error' => $app['security.last_error']($request),
         'last_username' => $app['session']->get('_security.last_username'),
     ));
 });

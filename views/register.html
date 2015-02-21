@@ -1,0 +1,14 @@
+<form action="{{ path('register') }}" method="post">
+    {{ error }}
+    <dl>
+        <dt>Login:</dt>
+        <dd><input type="text" name="username"/></dd>
+
+        <dt>Hasło:</dt>
+        <dd><input type="password" name="password" value="" /></dd>
+
+        <dt>Powtórz hasło</dt>
+        <dd><input type="password" name="password_repeat" value="" /></dd>
+    <dl>
+    <input type="submit" value="Załóż konto"/>
+</form>
