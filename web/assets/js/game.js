@@ -26,6 +26,7 @@ $(function () {
                 if (rooms[data.content.room_id]) {
                     rooms[data.content.room_id].handle_game_data(data.content);
                 }
+                break;
 
             default:
                 console.log(data);
@@ -89,14 +90,43 @@ function initialize_game(ws, content) {
 }
 
 function NoughtsAndCrosses(conn, root, room_id) {
-    this.ready = false;
+    this._ready = false;
     this.conn = conn;
     this.room_id = room_id;
 
-    var ready_button = $('<button>Gotowy</button>');
+    var ready_button = $('<button>Gotowy</button>').hide();
     root.find('.interface').append(ready_button);
     this.user_list_container = root.find('.user-list');
     this.canvas = root.find('.canvas');
+
+    ready_button.click(function (e) {
+        conn.send(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'room_id': room_id,
+                'msg': 'client-ready',
+            }
+        }));
+    })
+
+    this.ready_button = ready_button;
+
+    var retry_button = $('<button>Jeszcze raz</button>').hide();
+    root.find('.interface').append(retry_button);
+    this.user_list_container = root.find('.user-list');
+    this.canvas = root.find('.canvas');
+
+    retry_button.click(function (e) {
+        conn.send(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'room_id': room_id,
+                'msg': 'retry',
+            }
+        }));
+    })
+
+    this.retry_button = retry_button;
 
     this.fields = [];
     for (var i = 0; i < 3; i++) {
@@ -124,16 +154,6 @@ function NoughtsAndCrosses(conn, root, room_id) {
         this.fields.push(fields_row);
     }
 
-    ready_button.click(function (e) {
-        conn.send(JSON.stringify({
-            'type': 'game-data',
-            'content': {
-                'room_id': room_id,
-                'msg': 'client-ready',
-            }
-        }));
-    })
-
     this.handle_game_data = function (data) {
         switch (data.msg) {
             case 'ready-ack':
@@ -160,8 +180,21 @@ function NoughtsAndCrosses(conn, root, room_id) {
                 alert("Remis :O");
                 break;
 
+            case 'your-state':
+                this.handle_state(data);
+                break;
+
             default:
                 console.log(data);
+        }
+    }
+
+    this.handle_state = function (data) {
+        if (data.state == 'waiting') {
+            this.ready_button.show();
+            this.retry_button.hide();
+        } else if (data.state == 'finished') {
+            this.retry_button.show();
         }
     }
 
@@ -174,12 +207,23 @@ function NoughtsAndCrosses(conn, root, room_id) {
     }
 
     this.ready = function () {
-        this.ready = true;
+        this._ready = true;
         ready_button.hide();
     }
 
     this.boot = function () {
         this.refresh_user_list();
+        this.get_state();
+    }
+
+    this.get_state = function () {
+        this.conn.send(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'room_id': room_id,
+                'msg': 'get-my-state',
+            }
+        }));
     }
 
     this.refresh_user_list = function () {
@@ -195,10 +239,10 @@ function NoughtsAndCrosses(conn, root, room_id) {
     this._render_user_list = function (data) {
         var list = $('<ul>');
         for (var key in data.guests) {
-            var status = data.guests[key].status
+            var state = data.guests[key].state
             var txt = key;
-            if (status) {
-                txt += ' - ' + status
+            if (state) {
+                txt += ' - ' + state
             }
             list.append($('<li>' + txt + '</li>'));
         }
