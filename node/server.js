@@ -313,9 +313,26 @@ function NoughtsAndCrosses(room) {
                 this.maybe_retry(conn);
                 break;
 
+            case 'room-msg':
+                this.handle_room_msg(conn, content);
+                break;
+
             default:
                 console.log(content);
         }
+    }
+
+    this.handle_room_msg = function (conn, content) {
+        var msg = {
+            'type': 'game-data',
+            'content': {
+                'room_id': this.room.id,
+                'msg': 'room-msg',
+                'message': content.message,
+                'user': conn.username,
+            }
+        }
+        this.room.send_to_all(msg);
     }
 
     this.maybe_retry = function (conn) {
@@ -419,6 +436,16 @@ function NoughtsAndCrosses(room) {
         }
 
         this.room.send_to_all(msg);
+
+        var msg = {
+            'type': 'game-data',
+            'content': {
+                'msg': 'log',
+                'room_id': this.room.id,
+                'message': 'remis',
+            }
+        }
+        this.room.send_to_all(msg);
     }
 
     this.stop = function () {
@@ -448,11 +475,28 @@ function NoughtsAndCrosses(room) {
 
         for (key in this.room.guests) {
             var guest_conn = this.room.guests[key];
+            if (key == player) {
+                var result = 'won';
+
+                var msg = {
+                    'type': 'game-data',
+                    'content': {
+                        'msg': 'log',
+                        'room_id': this.room.id,
+                        'message': key + ' wygrał',
+                    }
+                }
+                this.room.send_to_all(msg);
+            } else {
+                var result = 'lost';
+                var log_msg = key + ' przegrał';
+            }
+
             for (var i = 0; i < guest_conn.length; i++) {
                 var msg = {
                     'type': 'game-data',
                     'content': {
-                        'msg': key == player ? 'won' : 'lost',
+                        'msg': result,
                         'room_id': this.room.id,
                     }
                 };

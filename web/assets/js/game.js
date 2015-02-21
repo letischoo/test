@@ -94,10 +94,14 @@ function NoughtsAndCrosses(conn, root, room_id) {
     this.conn = conn;
     this.room_id = room_id;
 
+    var game = this;
+
     var ready_button = $('<button>Gotowy</button>').hide();
     root.find('.interface').append(ready_button);
     this.user_list_container = root.find('.user-list');
     this.canvas = root.find('.canvas');
+    this.room_msg = root.find('.messages');
+    this.room_msg_interface = root.find('.messages-interface');
 
     ready_button.click(function (e) {
         conn.send(JSON.stringify({
@@ -127,6 +131,15 @@ function NoughtsAndCrosses(conn, root, room_id) {
     })
 
     this.retry_button = retry_button;
+
+    this.room_msg_interface.find('button').click(function (e) {
+        var input = $(this).parent().find('input');
+        var txt = input.val();
+        if (txt) {
+            game.send_message(txt);
+            input.val('');
+        }
+    })
 
     this.fields = [];
     for (var i = 0; i < 3; i++) {
@@ -184,9 +197,41 @@ function NoughtsAndCrosses(conn, root, room_id) {
                 this.handle_state(data);
                 break;
 
+            case 'room-msg':
+                this.render_room_msg(data);
+                break;
+
+            case 'log':
+                this.render_log(data);
+                break;
+
             default:
                 console.log(data);
         }
+    }
+
+    this.render_log = function (data) {
+        this.room_msg.append($(
+            '<div class="log">' + data.message + '</div>'
+        ));
+    }
+
+    this.render_room_msg = function (data) {
+        this.room_msg.append($(
+            '<div class="msg"><span>' + data.user + ':</span> '
+            + data.message + '</div>'
+        ));
+    }
+
+    this.send_message = function (txt) {
+        this.conn.send(JSON.stringify({
+            'type': 'game-data',
+            'content': {
+                'room_id': room_id,
+                'msg': 'room-msg',
+                'message': txt,
+            }
+        }));
     }
 
     this.handle_state = function (data) {
