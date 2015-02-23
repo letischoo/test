@@ -1,3 +1,17 @@
 {% extends "base.html" %}
 
-{% block content %}strona guwna{% endblock %}
+{% block content %}
+    <h3>Wybierz grę, w którą chcesz zagrać</h3>
+
+    <ul>
+        {% for type, game in games %}
+            <li><a href="{{ path('listrooms', {gametype: type}) }}">{{ game }}</a></li>
+        {% endfor %}
+    </ul>
+
+    <div>
+        <input type="text" id="msg" />
+        <button type="submit" id="send">Send</button>
+        <div id="chat"> </div>
+    </div>
+{% endblock %}

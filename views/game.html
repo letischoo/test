@@ -1,13 +1,6 @@
 {% extends "base.html" %}
 
-{% block scripts %}
-    {{ parent() }}
-    <script type="text/javascript" src="/assets/js/game.js"></script>
-{% endblock %}
-
 {% block content %}
-
-some game
 
 <div id="gameroot" data-roomid="{{ game.id }}">
     <div class="interface">

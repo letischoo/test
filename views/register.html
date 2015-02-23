@@ -1,14 +1,18 @@
-<form action="{{ path('register') }}" method="post">
-    {{ error }}
-    <dl>
-        <dt>Login:</dt>
-        <dd><input type="text" name="username"/></dd>
+{% extends "base.html" %}
 
-        <dt>Hasło:</dt>
-        <dd><input type="password" name="password" value="" /></dd>
+{% block content %}
+    <form action="{{ path('register') }}" method="post">
+        <span class="text-danger">{{ error }}</span>
+        <dl>
+            <dt>Login:</dt>
+            <dd><input type="text" name="username"/></dd>
 
-        <dt>Powtórz hasło</dt>
-        <dd><input type="password" name="password_repeat" value="" /></dd>
-    <dl>
-    <input type="submit" value="Załóż konto"/>
-</form>
+            <dt>Hasło:</dt>
+            <dd><input type="password" name="password" value="" /></dd>
+
+            <dt>Powtórz hasło</dt>
+            <dd><input type="password" name="password_repeat" value="" /></dd>
+        <dl>
+        <input type="submit" value="Załóż konto"/>
+    </form>
+{% endblock %}

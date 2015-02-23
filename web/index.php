@@ -183,10 +183,6 @@ $app->register(new Silex\Provider\TwigServiceProvider(), array(
     'twig.path' => __DIR__.'/../views',
 ));
 
-$app->get('/game', function() use($app) {
-    return $app['twig']->render('games.html', ['games' => $app['games']]);
-});
-
 $app->get('/listrooms/{gametype}', function($gametype) use ($app) {
     if (!array_key_exists($gametype, $app['games'])) {
         $app->abort(404, 'Gametype does not exist!');
@@ -246,8 +242,9 @@ $app->get('/logout', function() use($app) {
 ->bind('logout');
 
 $app->get('/', function() use($app) {
-    return $app['twig']->render('homepage.html');
-});
+    return $app['twig']->render('homepage.html', ['games' => $app['games']]);
+})
+->bind('homepage');
 
 $app->get('/register', function() use($app) {
     return $app['twig']->render('register.html', ['error' => null]);
