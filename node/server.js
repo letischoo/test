@@ -223,10 +223,13 @@ function Room(id, gametype) {
         return true;
     }
 
-    this.get_guest_list = function () {
+    this.get_guest_list = function (active_player) {
         var list = {};
         for (var key in this.guests) {
-            list[key] = {'state': this.guests[key].state};
+            list[key] = {
+                'state': this.guests[key].state,
+                'active': key == active_player,
+            };
         }
         return list;
     }
@@ -397,6 +400,7 @@ function NoughtsAndCrosses(room) {
         this.refresh_board();
         this.maybe_end();
         this.switch_players();
+        this.refresh_all_user_lists();
     }
 
     this.maybe_end = function () {
@@ -450,6 +454,7 @@ function NoughtsAndCrosses(room) {
 
     this.stop = function () {
         this.state = 'finished';
+        this.actual_player = null;
         this.set_states_to(this.state);
         this.refresh_state();
         this.refresh_all_user_lists();
@@ -577,7 +582,7 @@ function NoughtsAndCrosses(room) {
             'content': {
                 'msg': 'user-list',
                 'room_id': this.room.id,
-                'guests': this.room.get_guest_list(),
+                'guests': this.room.get_guest_list([this.actual_player]),
             }
         };
     }
@@ -611,6 +616,7 @@ function NoughtsAndCrosses(room) {
         this.signs[players[1]] = 'O';
         this.actual_player = this.player1;
         this.state = 'running';
+        this.refresh_all_user_lists();
     }
 
     this.clean_user_states = function () {

@@ -6,3 +6,24 @@
     width: 500px;
     height: 150px;
 }
+
+
+.msg span {
+    font-weight: bold;
+}
+
+.log {
+    color: gray;
+}
+
+.canvas button {
+    width: 140px;
+    height: 140px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 80px;
+}
+
+.active-user {
+    font-weight: bold;
+}

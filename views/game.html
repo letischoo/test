@@ -1,20 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <div id="gameroot" data-roomid="{{ game.id }}">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="canvas"></div>
+            </div>
+            <div class="col-md-2">
+                <div class="interface"></div>
+                <h4>Użytkownicy</h4>
+                <div class="user-list"></div>
+            </div>
+            <div class="col-md-4">
+                <h4>Czat pokoju</h4>
+                <div class="messages-interface">
+                    <input type="text" class="msg"/>
+                    <button>Wyślij</button>
+                </div>
+                <div class="messages"></div>
+            </div>
+        </div>
+    </div>
 
-<div id="gameroot" data-roomid="{{ game.id }}">
-    <div class="interface">
-    </div>
-    <div class="user-list">
-    </div>
-    <div class="canvas">
-    </div>
-    <div class="messages">
-    </div>
-    <div class="messages-interface">
-        <input type="text" class="msg"/>
-        <button>Wyślij</button>
-    </div>
-</div>
-
+    {% include "global_chat.html" %}
 {% endblock %}

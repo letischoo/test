@@ -94,8 +94,9 @@ function NoughtsAndCrosses(conn, root, room_id) {
 
     var game = this;
 
-    var ready_button = $('<button>Gotowy</button>').hide();
+    var ready_button = $('<button>Gotowy</button>');
     root.find('.interface').append(ready_button);
+    ready_button.hide();
     this.user_list_container = root.find('.user-list');
     this.canvas = root.find('.canvas');
     this.room_msg = root.find('.messages');
@@ -256,10 +257,15 @@ function NoughtsAndCrosses(conn, root, room_id) {
     }
 
     this._render_user_list = function (data) {
+        console.log(data);
         var list = $('<ul>');
         for (var key in data.guests) {
             var state = data.guests[key].state
+            var is_active = data.guests[key].active
             var txt = key;
+            if (is_active) {
+                txt = '<span class="active-user">' + txt + '</span>'
+            }
             if (state) {
                 txt += ' - ' + state
             }
