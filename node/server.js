@@ -255,21 +255,33 @@ function Room(id, gametype) {
 
     this.disconnect = function (conn) {
         if (this.guests[conn.username]) {
-            conns = this.guests[conn.username];
+            var conns = this.guests[conn.username];
             var index = conns.indexOf(conn);
             if (index > -1) {
                 conns.splice(index, 1);
             }
 
-            if (conns.length == 0) {
-                delete this.guests[conn.username];
-                this.game.refresh();
-            }
+            this.refresh_connections();
         }
     }
 
+    this.refresh_connections = function () {
+        if (this.game.is_guests_list_frozen()) {
+            return;
+        }
+
+        for (var key in this.guests) {
+            var conns = this.guests[key];
+            if (conns.length == 0) {
+                delete this.guests[key];
+            }
+        }
+
+        this.game.refresh();
+    }
+
     this.send_to_all = function (msg) {
-        for (key in this.guests) {
+        for (var key in this.guests) {
             var guest_conn = this.guests[key];
             for (var i = 0; i < guest_conn.length; i++) {
                 send(guest_conn[i], msg);
@@ -329,6 +341,7 @@ function NoughtsAndCrosses(room) {
 
             case 'get-my-state':
                 this.handle_get_state(conn);
+                this.refresh_board();
                 break;
 
             case 'retry':
@@ -643,6 +656,10 @@ function NoughtsAndCrosses(room) {
             this.room.guests[key].state = null;
         }
         this.refresh_all_user_lists();
+    }
+
+    this.is_guests_list_frozen = function () {
+        return this.state == 'running'
     }
 }
 
