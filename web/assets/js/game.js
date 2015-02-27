@@ -105,7 +105,7 @@ function Room(gametype, conn, root, room_id) {
         var input = $(this).parent().find('input');
         var txt = input.val();
         if (txt) {
-            game.send_message(txt);
+            room.send_message(txt);
             input.val('');
         }
     });
