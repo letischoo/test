@@ -21,7 +21,17 @@ var server = ws.createServer(function (conn) {
     connections.push(conn);
     conn.on("text", function (msg) {
         data = JSON.parse(msg);
-        handle_message(conn, data);
+        try {
+            handle_message(conn, data);
+        } catch (err) {
+            var msg = {
+                'type': 'error',
+                'content': 'Unexpected error!',
+            };
+            send(conn, msg);
+            console.log('Error has occured!');
+            console.log(err);
+        }
     })
     conn.on("close", function (code, reason) {
         handle_close(conn, code, reason);
@@ -30,17 +40,26 @@ var server = ws.createServer(function (conn) {
 
 function handle_message(conn, data) {
     content = data.content
-    if (data.type == 'global-message') {
-        handle_global_message(conn, content);
-    } else if (data.type == 'authentication') {
-        handle_authorization(conn, content);
-    } else if (data.type == 'join-room') {
-        handle_join_room(conn, content);
-    } else if (data.type == 'game-data') {
-        handle_game_data(conn, content);
-    } else {
-        console.log('Wrong message!');
-        console.log(data);
+    switch (data.type) {
+        case 'global-message':
+            handle_global_message(conn, content);
+            break;
+
+        case 'authentication':
+            handle_authorization(conn, content);
+            break;
+
+        case 'join-room':
+            handle_join_room(conn, content);
+            break;
+
+        case 'game-data':
+            handle_game_data(conn, content);
+            break;
+
+        default:
+            console.log('Wrong message!');
+            console.log(data);
     }
 }
 
