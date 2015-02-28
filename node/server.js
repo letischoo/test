@@ -222,6 +222,7 @@ function Room(id, gametype) {
         this.guests[key] = [conn];
         this.guests[key].state = 'waiting';
         this.game.refresh();
+        this.refresh_guest_count();
         return true;
     }
 
@@ -262,7 +263,15 @@ function Room(id, gametype) {
             }
 
             this.refresh_connections();
+            this.refresh_guest_count();
         }
+    }
+
+    this.refresh_guest_count = function () {
+        db_conn.query(
+            'update rooms set guests = ? where id = ?',
+            [this.guests_amount(), this.id]
+        )
     }
 
     this.refresh_connections = function () {

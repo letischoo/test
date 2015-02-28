@@ -6,7 +6,7 @@ Pokoje dla gry {{ gamename }}:
 
 <ul>
 {% for game in games %}
-    <li><a href="{{ path('game', {room_id: game.id})}}">Room {{ game.id }}</a></li>
+<li><a href="{{ path('game', {room_id: game.id})}}">Room {{ game.id }} {{ game.guests }}/{{ game.capacity }}</a></li>
 {% endfor %}
 </ul>
 

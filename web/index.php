@@ -76,7 +76,7 @@ $app['session.db_options'] = array(
 
 
 $app['games'] = [
-    'noughsandcrosses' => 'Kółko i krzyżyk'
+    'noughsandcrosses' => ['name' => 'Kółko i krzyżyk', 'capacity' => 2],
 ];
 
 $app->register(new Silex\Provider\SecurityServiceProvider(), array(
@@ -123,6 +123,8 @@ if (!$schema->tablesExist('rooms')) {
     $rooms->addColumn('id', 'integer', array('unsigned' => true, 'autoincrement' => true));
     $rooms->setPrimaryKey(array('id'));
     $rooms->addColumn('gametype', 'string', array('length' => 32));
+    $rooms->addColumn('guests', 'integer', array('default' => 0));
+    $rooms->addColumn('capacity', 'integer');
 
     $schema->createTable($rooms);
 }
@@ -195,7 +197,7 @@ $app->get('/listrooms/{gametype}', function($gametype) use ($app) {
 
     $data = [
         'gametype' => $gametype,
-        'gamename' => $app['games'][$gametype],
+        'gamename' => $app['games'][$gametype]['name'],
         'games' => $games,
     ];
     return $app['twig']->render('listrooms.html', $data);
@@ -209,6 +211,7 @@ $app->post('/createroom/{gametype}', function($gametype) use ($app) {
 
     $app['db']->insert('rooms', array(
         'gametype' => $gametype,
+        'capacity' => $app['games'][$gametype]['capacity'],
     ));
 
     return $app->redirect($app['url_generator']->generate(
