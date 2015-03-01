@@ -202,6 +202,11 @@ function get_room(id, callback, err_callback) {
     )
 }
 
+function destroy_room(id) {
+    delete rooms[id];
+    db_conn.query('delete from rooms where ?', {id: id});
+}
+
 function Room(id, gametype) {
     this.id = id;
     this.gametype = gametype;
@@ -264,6 +269,10 @@ function Room(id, gametype) {
 
             this.refresh_connections();
             this.refresh_guest_count();
+        }
+
+        if (this.guests_amount() == 0) {
+            destroy_room(this.id);
         }
     }
 

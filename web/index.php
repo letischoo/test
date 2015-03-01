@@ -190,7 +190,7 @@ $app->get('/listrooms/{gametype}', function($gametype) use ($app) {
         $app->abort(404, 'Gametype does not exist!');
     }
 
-    $games_sql = $app['db']->prepare('SELECT * FROM rooms where gametype = :gametype');
+    $games_sql = $app['db']->prepare('SELECT * FROM rooms where guests < capacity and gametype = :gametype');
     $games_sql->bindParam(':gametype', $gametype, \PDO::PARAM_STR);
     $games_sql->execute();
     $games = $games_sql->fetchAll(\PDO::FETCH_ASSOC);

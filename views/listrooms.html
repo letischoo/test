@@ -4,11 +4,15 @@
 
 Pokoje dla gry {{ gamename }}:
 
-<ul>
-{% for game in games %}
-<li><a href="{{ path('game', {room_id: game.id})}}">Room {{ game.id }} {{ game.guests }}/{{ game.capacity }}</a></li>
-{% endfor %}
-</ul>
+{% if games %}
+    <ul>
+        {% for game in games %}
+            <li><a href="{{ path('game', {room_id: game.id})}}">Room {{ game.id }} {{ game.guests }}/{{ game.capacity }}</a></li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <h4>Brak wolnych pokojów!</h4>
+{% endif %}
 
 <form method="post" action="{{ path('createroom', {gametype: gametype})}}">
     <button type="submit">Stwórz nowy pokój.</button>
