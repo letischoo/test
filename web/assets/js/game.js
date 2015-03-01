@@ -35,6 +35,10 @@ $(function () {
                 }
                 break;
 
+            case 'cant-join':
+                window.location.href = '/listrooms/' + data.content.gametype
+                break;
+
             default:
                 console.log(data);
         }

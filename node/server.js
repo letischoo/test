@@ -133,6 +133,7 @@ function handle_join_room(conn, content) {
             };
             return send(conn, msg);
         }
+
         result = room.add_guest(conn);
         if (result) {
             var msg = {
@@ -144,8 +145,11 @@ function handle_join_room(conn, content) {
             };
         } else {
             var msg = {
-                'type': 'error',
-                'content': "Can't join room.",
+                'type': 'cant-join',
+                'content': {
+                    'message': "Can't join room.",
+                    'gametype': room.gametype,
+                }
             };
         }
         send(conn, msg);
