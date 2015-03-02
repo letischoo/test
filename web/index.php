@@ -77,6 +77,7 @@ $app['session.db_options'] = array(
 
 $app['games'] = [
     'noughsandcrosses' => ['name' => 'Kółko i krzyżyk', 'capacity' => 2],
+    'snakes' => ['name' => 'Snake dla 2', 'capacity' => 2],
 ];
 
 $app->register(new Silex\Provider\SecurityServiceProvider(), array(

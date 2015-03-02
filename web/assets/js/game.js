@@ -8,7 +8,7 @@ function send(socket, type, data) {
 }
 
 $(function () {
-    var ws = new WebSocket("ws://localhost:8001");
+    var ws = new WebSocket("ws://" + window.location.host + ":8001");
     ws.onmessage = function(msg) {
         data = JSON.parse(msg.data);
 
@@ -168,8 +168,7 @@ function Room(gametype, conn, root, room_id) {
                 this.render_log(data);
                 break;
 
-            case 'user-list':
-                this._render_user_list(data);
+            case 'user-list': this._render_user_list(data);
                 break;
 
             case 'ready-ack':
@@ -306,6 +305,134 @@ function NoughtsAndCrosses(conn, root, room) {
     }
 }
 
+
+function Snakes(conn, root, room) {
+    this._ready = false;
+    this.conn = conn;
+    this.room = room;
+
+    this.width = 40;
+    this.height = 40;
+    this.border = 1;
+    this.multiplier = 10;
+
+    var game = this;
+
+    this.outer_width = function () {
+        return (this.width + this.border * 2) * this.multiplier;
+    }
+
+    this.outer_height = function () {
+        return (this.height + this.border * 2) * this.multiplier;
+    }
+
+    this.inner_width = function () {
+        return this.width * this.multiplier;
+    }
+
+    this.inner_height = function () {
+        return this.height * this.multiplier;
+    }
+
+    this.border_offset = function () {
+        return this.border * this.multiplier;
+    }
+
+    this.pre_render_board = function () {
+        var ctx = this.context;
+        var m = this.multiplier;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, this.outer_width(), this.outer_height());
+        ctx.fillStyle = '#fff';
+        var offset = this.border_offset();
+        ctx.fillRect(offset, offset, this.inner_width(), this.inner_height());
+    }
+
+    var canvas = $('<canvas>');
+    canvas.width(this.width * this.multiplier);
+    canvas.height(this.height * this.multiplier);
+    this.canvas = canvas[0];
+    this.canvas.width = this.outer_width();
+    this.canvas.height = this.outer_height();
+    this.context = this.canvas.getContext('2d');
+    this.room.canvas.append(this.canvas);
+    this.pre_render_board();
+
+    $(document).keydown(function(e) {
+        switch(e.which) {
+            case 37:
+                game.change_direction('L');
+                break;
+
+            case 38:
+                game.change_direction('U');
+                break;
+
+            case 39:
+                game.change_direction('R');
+                break;
+
+            case 40:
+                game.change_direction('D');
+                break;
+
+            default:
+                return;
+        }
+        e.preventDefault();
+    });
+
+    this.change_direction = function (new_direction) {
+        console.log(new_direction);
+        send(conn, 'game-data', {
+                'msg': 'change_direction',
+                'room_id': this.room.id,
+                'direction': new_direction,
+            })
+    }
+
+    this.handle_game_data = function (data) {
+        switch (data.msg) {
+            case 'ready-ack':
+                this.ready();
+                break;
+
+            case 'board':
+                this._render_board(data);
+                break;
+
+            default:
+                console.log(data);
+        }
+    }
+
+    this.stop = function () {
+    }
+
+    this._render_board = function (data) {
+        this.pre_render_board();
+        for (var i = 0; i < data.board.length; i++) {
+            var elem = data.board[i];
+            this.render_point(elem[0], elem[1]);
+        }
+    }
+
+    this.render_point = function (x, y) {
+        this.context.fillStyle = '#000';
+        this.context.fillRect(
+            (x + this.border) * this.multiplier,
+            (y + this.border) * this.multiplier,
+            this.multiplier,
+            this.multiplier
+        )
+    }
+
+    this.ready = function () {
+        this._ready = true;
+    }
+}
+
 var gametype_game_map = {
     'noughsandcrosses': NoughtsAndCrosses,
+    'snakes': Snakes,
 }
