@@ -21,17 +21,17 @@ var server = ws.createServer(function (conn) {
     connections.push(conn);
     conn.on("text", function (msg) {
         data = JSON.parse(msg);
-        //try {
+        try {
             handle_message(conn, data);
-        //} catch (err) {
-            //var msg = {
-                //'type': 'error',
-                //'content': 'Unexpected error!',
-            //};
-            //send(conn, msg);
-            //console.log('Error has occured!');
-            //console.log(err);
-        //}
+        } catch (err) {
+            var msg = {
+                'type': 'error',
+                'content': 'Unexpected error!',
+            };
+            send(conn, msg);
+            console.log('Error has occured!');
+            console.log(err);
+        }
     })
     conn.on("close", function (code, reason) {
         handle_close(conn, code, reason);
@@ -207,10 +207,13 @@ function get_room(id, callback, err_callback) {
 }
 
 function destroy_room(id) {
-    console.log('fixme');
-    return;
-    delete rooms[id];
-    db_conn.query('delete from rooms where ?', {id: id});
+    setTimeout(function () {
+        if (!rooms[id] || rooms[id].guests_amount() > 0) {
+            return;
+        }
+        delete rooms[id];
+        db_conn.query('delete from rooms where ?', {id: id});
+    }, 10000);
 }
 
 function Room(id, gametype) {
