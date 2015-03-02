@@ -91,12 +91,16 @@ function handle_authorization(conn, content) {
 }
 
 function handle_global_message(conn, content) {
+    if (!conn.username) {
+        return not_authorized_error(conn);
+    }
+
     for (var i = 0; i < connections.length; i++) {
         var msg = {
             'type': 'global-message',
             'content': {
-                'name': connections.indexOf(conn),
-                'message': content.toLowerCase()+".",
+                'name': conn.username,
+                'message': content.toLowerCase(),
             }
         };
         send(connections[i], msg);
