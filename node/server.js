@@ -337,7 +337,7 @@ function Room(id, gametype) {
         var msg = {
             'type': 'game-data',
             'content': {
-                'room_id': this.room.id,
+                'room_id': this.id,
                 'msg': 'room-msg',
                 'message': content.message,
                 'user': conn.username,
@@ -1185,12 +1185,12 @@ function PlayerSnake(board_width, board_height, direction, start_x, start_y, len
 }
 
 function generate_board(width, height) {
-    var row = [];
-    for (var i = 0; i < width; i++) {
-        row.push(null);
-    }
     var board = [];
     for (var i = 0; i < height; i++) {
+        var row = [];
+        for (var j = 0; j < width; j++) {
+            row.push(null);
+        }
         board.push(row);
     }
     return board;
